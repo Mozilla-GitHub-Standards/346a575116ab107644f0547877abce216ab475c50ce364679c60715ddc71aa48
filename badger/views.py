@@ -54,6 +54,7 @@ from .forms import (BadgeAwardForm, DeferredAwardGrantForm,
 def home(request):
     """Badger home page"""
     badge_list = Badge.objects.order_by('-modified').all()[:bsettings.MAX_RECENT]
+    print badge_list
     award_list = Award.objects.order_by('-modified').all()[:bsettings.MAX_RECENT]
     badge_tags = Badge.objects.top_tags()
 
