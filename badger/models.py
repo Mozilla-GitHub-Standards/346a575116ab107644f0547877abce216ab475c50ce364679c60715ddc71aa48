@@ -449,7 +449,7 @@ class Badge(roa.Model):
 
     @classmethod
     def get_resource_url_list(cls):
-        return u'http://localhost:8080/systems/badgekit/badges'
+        return urljoin(settings.BADGEKIT_API_ENDPOINT, '/systems/badgekit/badges')
     
     def get_resource_url_count(self):
         return self.get_resource_url_list()
