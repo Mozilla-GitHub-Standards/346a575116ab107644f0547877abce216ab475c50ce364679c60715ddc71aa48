@@ -6,6 +6,7 @@ from django.contrib import admin
 from django import forms
 from django.db import models
 
+from django_roa import ModelAdmin as ROAModelAdmin
 try:
     from funfactory.urlresolvers import reverse
 except ImportError:
@@ -65,10 +66,10 @@ related_awards_link.allow_tags = True
 related_awards_link.short_description = "Awards"
 
 
-class BadgeAdmin(admin.ModelAdmin):
-    list_display = ("id", "title", show_image, "slug", "unique", "creator",
+class BadgeAdmin(ROAModelAdmin):
+    list_display = ("title", show_image, "slug", "unique", "creator",
                     related_awards_link, related_deferredawards_link, "created",)
-    list_display_links = ('id', 'title',)
+    list_display_links = ('title',)
     search_fields = ("title", "slug", "image", "description",)
     filter_horizontal = ('prerequisites', )
     prepopulated_fields = {"slug": ("title",)}
@@ -84,7 +85,7 @@ class BadgeAdmin(admin.ModelAdmin):
 
 
 def badge_link(self):
-    url = reverse('admin:badger_badge_change', args=[self.badge.id])
+    url = reverse('admin:badger_badge_change', args=[self.badge.slug])
     return '<a href="%s">%s</a>' % (url, self.badge)
 
 badge_link.allow_tags = True

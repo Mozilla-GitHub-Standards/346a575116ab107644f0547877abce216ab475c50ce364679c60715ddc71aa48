@@ -29,6 +29,10 @@ from django.template.loader import render_to_string
 
 from django.core.serializers.json import DjangoJSONEncoder
 
+import django_roa as roa
+
+from rest_framework import serializers
+
 try:
     import django.utils.simplejson as json
 except ImportError: # Django 1.5 no longer bundles simplejson
@@ -103,9 +107,9 @@ BADGE_UPLOADS_FS = FileSystemStorage(location=UPLOADS_ROOT,
                                      base_url=UPLOADS_URL)
 
 DEFAULT_BADGE_IMAGE = getattr(settings, 'BADGER_DEFAULT_BADGE_IMAGE',
-    "%s/fixtures/default-badge.png" % dirname(__file__))
+    "%s/img/default-badge.png" % dirname(__file__))
 DEFAULT_BADGE_IMAGE_URL = getattr(settings, 'BADGER_DEFAULT_BADGE_IMAGE_URL',
-    urljoin(getattr(settings, 'MEDIA_URL', '/media/'), 'img/default-badge.png'))
+    urljoin(getattr(settings, 'STATIC_URL', '/static/'), 'img/default-badge.png'))
 
 TIME_ZONE_OFFSET = getattr(settings, "TIME_ZONE_OFFSET", timedelta(0))
 
@@ -344,7 +348,7 @@ class BadgeDeferredAwardManagementNotAllowedException(BadgeException):
     """Attempt to manage deferred awards not allowed."""
 
 
-class BadgeManager(models.Manager, SearchManagerMixin):
+class BadgeManager(roa.Manager, SearchManagerMixin):
     """Manager for Badge model objects"""
     search_fields = ('title', 'slug', 'description', )
 
@@ -394,21 +398,21 @@ class BadgeManager(models.Manager, SearchManagerMixin):
 
         return tags_with_counts
 
-
-@_document_django_model
-class Badge(models.Model):
+class Badge(roa.Model):
     """Representation of a badge"""
     objects = BadgeManager()
 
-    title = models.CharField(max_length=255, blank=False, unique=True,
+    title = models.CharField(db_column='name', max_length=255, blank=False, unique=True,
         help_text='Short, descriptive title')
-    slug = models.SlugField(blank=False, unique=True,
-        help_text='Very short name, for use in URLs and links')
-    description = models.TextField(blank=True,
+    slug = models.CharField(blank=False, unique=True, max_length=255,
+        help_text='Very short name, for use in URLs and links', primary_key=True)
+    description = models.TextField(db_column='consumerDescription', blank=True,
         help_text='Longer description of the badge and its criteria')
     image = models.ImageField(blank=True, null=True,
             storage=BADGE_UPLOADS_FS, upload_to=mk_upload_to('image', 'png'),
             help_text='Upload an image to represent the badge')
+    image_url = models.URLField(null=True, blank=True)
+
     prerequisites = models.ManyToManyField('self', symmetrical=False,
             blank=True, null=True,
             help_text=('When all of the selected badges have been awarded, this '
@@ -426,22 +430,36 @@ class Badge(models.Model):
     nominations_autoapproved = models.BooleanField(default=False, blank=True,
             help_text='Should all nominations be automatically approved?')
 
-    if taggit:
-        tags = TaggableManager(blank=True)
+    # if taggit:
+    #     tags = TaggableManager(blank=True)
 
     creator = models.ForeignKey(User, blank=True, null=True)
     created = models.DateTimeField(auto_now_add=True, blank=False)
-    modified = models.DateTimeField(auto_now=True, blank=False)
+    modified = models.DateTimeField(auto_now=True, blank=False, default=datetime.now())
 
     class Meta:
         unique_together = ('title', 'slug')
-        ordering = ['-modified', '-created']
+        ordering = ['-created']
         permissions = (
             ('manage_deferredawards',
              _(u'Can manage deferred awards for this badge')),
         )
 
     get_permissions_for = get_permissions_for
+
+    @classmethod
+    def get_resource_url_list(cls):
+        return u'http://localhost:8080/systems/badgekit/badges'
+    
+    def get_resource_url_count(self):
+        return self.get_resource_url_list()
+
+    def get_resource_url_detail(self):
+        return u"%s/%s" % (self.get_resource_url_list(), self.pk)
+
+    @classmethod
+    def serializer(cls):
+        return BadgeSerializer
 
     def __unicode__(self):
         return self.title
@@ -482,22 +500,26 @@ class Badge(models.Model):
         return True
 
     def allows_edit_by(self, user):
-        if user.is_anonymous():
-            return False
-        if user.has_perm('badger.change_badge'):
-            return True
-        if user == self.creator:
-            return True
-        return False
+        # Since we don't know badge creators yet, return True always for now.
+        return True
+        # if user.is_anonymous():
+        #     return False
+        # if user.has_perm('badger.change_badge'):
+        #     return True
+        # if user == self.creator:
+        #     return True
+        # return False
 
     def allows_delete_by(self, user):
-        if user.is_anonymous():
-            return False
-        if user.has_perm('badger.change_badge'):
-            return True
-        if user == self.creator:
-            return True
-        return False
+        # Since we don't know badge creators yet, return True always for now.
+        return True
+        # if user.is_anonymous():
+        #     return False
+        # if user.has_perm('badger.change_badge'):
+        #     return True
+        # if user == self.creator:
+        #     return True
+        # return False
 
     def allows_award_to(self, user):
         """Is award_to() allowed for this user?"""
@@ -676,11 +698,57 @@ class Badge(models.Model):
             "issuer": issuer
         }
 
-        image_url = self.image and self.image.url or DEFAULT_BADGE_IMAGE_URL
+        image_url = self.image_url or self.image and self.image.url or DEFAULT_BADGE_IMAGE_URL
         data['image'] = urljoin(base_url, image_url)
 
         return data
 
+class BadgeImageField(serializers.WritableField):
+    def field_to_native(self, obj, field_name):
+        if obj.image:
+            obj.image.save(obj.image.name, obj.image, save=False)
+            return urljoin(settings.SITE_URL, obj.image.url)
+        else:
+            return obj.image_url or urljoin(settings.SITE_URL, DEFAULT_BADGE_IMAGE_URL)
+
+class BadgeSerializer(serializers.Serializer):
+    def __init__(self, data=None, many=False, **kwargs):
+        if isinstance(data, dict):
+            if 'badge' in data:
+                data = data['badge']
+            elif 'badges' in data:
+                data = data['badges']
+                many = True
+
+        super(BadgeSerializer, self).__init__(data=data, many=many, **kwargs)
+
+    name = serializers.CharField(source='title')
+    slug = serializers.CharField()
+    earnerDescription = serializers.CharField(source='description')
+    consumerDescription = serializers.SerializerMethodField('get_consumer_description')
+    criteriaUrl = serializers.SerializerMethodField('get_criteria_url')
+    imageUrl = BadgeImageField(source='image_url')
+    unique = serializers.BooleanField()
+    type = serializers.SerializerMethodField('get_badge_type')
+
+    def restore_object(self, attrs, instance=None):
+        if instance is not None:
+            instance.title = attrs.get('title', instance.title)
+            instance.slug = attrs.get('slug', instance.slug)
+            instance.description = attrs.get('description', instance.description)
+            instance.image_url = attrs.get('image_url', instance.image_url)
+            instance.unique = attrs.get('unique', instance.unique)
+            return instance
+        return Badge(**attrs)
+
+    def get_consumer_description(self, obj):
+        return obj.description
+
+    def get_criteria_url(self, obj):
+        return urljoin(settings.SITE_URL, obj.get_absolute_url())
+
+    def get_badge_type(self, obj):
+        return 'This should be nullable'
 
 class AwardManager(models.Manager):
     def get_query_set(self):

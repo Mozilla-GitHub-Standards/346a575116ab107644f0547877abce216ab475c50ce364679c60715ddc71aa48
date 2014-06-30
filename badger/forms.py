@@ -159,14 +159,13 @@ class BadgeEditForm(MyModelForm):
     class Meta:
         model = Badge
         fields = ('title', 'image', 'description',)
-        try:
-            # HACK: Add "tags" as a field only if the taggit app is available.
-            import taggit
-            fields += ('tags',)
-        except ImportError:
-            pass
-        fields += ('unique', 'nominations_accepted',
-                   'nominations_autoapproved',)
+        # try:
+        #     # HACK: Add "tags" as a field only if the taggit app is available.
+        #     import taggit
+        #     fields += ('tags',)
+        # except ImportError:
+        #     pass
+        fields += ('unique',)
 
     required_css_class = "required"
     error_css_class = "error"
