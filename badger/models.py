@@ -1033,6 +1033,7 @@ class DeferredAwardManager(models.Manager):
 
     def get_claim_groups(self, badge):
         """Build a list of all known claim group IDs for a badge"""
+        return []
         qs = (self.filter(badge=badge)
                     .values('claim_group').distinct().all()
                     .annotate(modified=Max('modified'), count=Count('id')))
