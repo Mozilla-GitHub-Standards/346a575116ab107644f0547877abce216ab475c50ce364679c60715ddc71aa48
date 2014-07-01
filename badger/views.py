@@ -104,8 +104,9 @@ def detail(request, slug, format="html"):
     if not badge.allows_detail_by(request.user):
         return HttpResponseForbidden('Detail forbidden')
 
-    awards = (Award.objects.filter(badge=badge)
-                           .order_by('-created'))[:bsettings.MAX_RECENT]
+    awards = None
+    #awards = (Award.objects.filter(badge=badge)
+    #                       .order_by('-created'))[:bsettings.MAX_RECENT]
 
     # FIXME: This is awkward. It used to collect sections as responses to a
     # signal sent out to badger_multiplayer and hypothetical future expansions
