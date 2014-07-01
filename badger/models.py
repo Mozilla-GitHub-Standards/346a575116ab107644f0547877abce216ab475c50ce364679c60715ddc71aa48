@@ -730,7 +730,8 @@ class BadgeSerializer(serializers.Serializer):
     imageUrl = BadgeImageField(source='image_url')
     unique = serializers.BooleanField()
     type = serializers.SerializerMethodField('get_badge_type')
-
+    created = serializers.DateTimeField()
+    
     def restore_object(self, attrs, instance=None):
         if instance is not None:
             instance.title = attrs.get('title', instance.title)
