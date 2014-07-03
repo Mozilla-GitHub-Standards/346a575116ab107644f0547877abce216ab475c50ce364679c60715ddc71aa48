@@ -18,7 +18,7 @@ from django.db.models import signals, Q, Count, Max
 from django.db.models.fields.files import FieldFile, ImageFieldFile
 from django.core.mail import send_mail
 from django.core.exceptions import ValidationError
-from django.core.files.storage import FileSystemStorage
+from django.core.files.storage import FileSystemStorage, get_storage_class
 from django.core.files.base import ContentFile
 from django.contrib.auth.models import User, AnonymousUser
 from django.contrib.sites.models import Site
@@ -28,8 +28,6 @@ from django.template import Context, TemplateDoesNotExist
 from django.template.loader import render_to_string
 
 from django.core.serializers.json import DjangoJSONEncoder
-
-from django.utils.module_loading import import_by_path
 
 import django_roa as roa
 
@@ -104,7 +102,7 @@ SITE_ISSUER = getattr(settings, 'BADGER_SITE_ISSUER', {
 BADGE_UPLOADS_FS = None
 
 if getattr(settings, 'BADGE_UPLOADS_FS', False):
-    BADGE_UPLOADS_FS = import_by_path(settings.BADGE_UPLOADS_FS)()
+    BADGE_UPLOADS_FS = get_storage_class(import_path=settings.BADGE_UPLOADS_FS)()
 else:
     UPLOADS_ROOT = getattr(settings, 'BADGER_MEDIA_ROOT',
         os.path.join(getattr(settings, 'MEDIA_ROOT', 'media/'), 'uploads'))
