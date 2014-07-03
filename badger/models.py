@@ -99,12 +99,17 @@ SITE_ISSUER = getattr(settings, 'BADGER_SITE_ISSUER', {
 
 # Set up a file system for badge uploads that can be kept separate from the
 # rest of /media if necessary. Lots of hackery to ensure sensible defaults.
-UPLOADS_ROOT = getattr(settings, 'BADGER_MEDIA_ROOT',
-    os.path.join(getattr(settings, 'MEDIA_ROOT', 'media/'), 'uploads'))
-UPLOADS_URL = getattr(settings, 'BADGER_MEDIA_URL',
-    urljoin(getattr(settings, 'MEDIA_URL', '/media/'), 'uploads/'))
-BADGE_UPLOADS_FS = FileSystemStorage(location=UPLOADS_ROOT,
-                                     base_url=UPLOADS_URL)
+BADGE_UPLOADS_FS = None
+
+if getattr(settings, 'USE_S3_STORAGE', False):
+    BADGE_UPLOADS_FS = settings.DEFAULT_FILE_STORAGE
+else:
+    UPLOADS_ROOT = getattr(settings, 'BADGER_MEDIA_ROOT',
+        os.path.join(getattr(settings, 'MEDIA_ROOT', 'media/'), 'uploads'))
+    UPLOADS_URL = getattr(settings, 'BADGER_MEDIA_URL',
+        urljoin(getattr(settings, 'MEDIA_URL', '/media/'), 'uploads/'))
+    BADGE_UPLOADS_FS = FileSystemStorage(location=UPLOADS_ROOT,
+                                         base_url=UPLOADS_URL)
 
 DEFAULT_BADGE_IMAGE = getattr(settings, 'BADGER_DEFAULT_BADGE_IMAGE',
     "%s/img/default-badge.png" % dirname(__file__))
@@ -731,7 +736,7 @@ class BadgeSerializer(serializers.Serializer):
     unique = serializers.BooleanField()
     type = serializers.SerializerMethodField('get_badge_type')
     created = serializers.DateTimeField()
-    
+
     def restore_object(self, attrs, instance=None):
         if instance is not None:
             instance.title = attrs.get('title', instance.title)
