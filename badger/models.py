@@ -29,6 +29,8 @@ from django.template.loader import render_to_string
 
 from django.core.serializers.json import DjangoJSONEncoder
 
+from django.utils.module_loading import import_by_path
+
 import django_roa as roa
 
 from rest_framework import serializers
@@ -101,8 +103,8 @@ SITE_ISSUER = getattr(settings, 'BADGER_SITE_ISSUER', {
 # rest of /media if necessary. Lots of hackery to ensure sensible defaults.
 BADGE_UPLOADS_FS = None
 
-if getattr(settings, 'USE_S3_STORAGE', False):
-    BADGE_UPLOADS_FS = settings.DEFAULT_FILE_STORAGE
+if getattr(settings, 'BADGE_UPLOADS_FS', False):
+    BADGE_UPLOADS_FS = import_by_path(settings.BADGE_UPLOADS_FS)()
 else:
     UPLOADS_ROOT = getattr(settings, 'BADGER_MEDIA_ROOT',
         os.path.join(getattr(settings, 'MEDIA_ROOT', 'media/'), 'uploads'))
