@@ -497,7 +497,7 @@ class Badge(roa.Model):
 
     def delete(self, **kwargs):
         """Make sure deletes cascade to awards"""
-        self.award_set.all().delete()
+        #self.award_set.all().delete()
         super(Badge, self).delete(**kwargs)
 
     def allows_detail_by(self, user):

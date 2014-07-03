@@ -207,7 +207,7 @@ def delete(request, slug):
     if not badge.allows_delete_by(request.user):
         return HttpResponseForbidden()
 
-    awards_count = badge.award_set.count()
+    awards_count = 0 #badge.award_set.count()
 
     if request.method == "POST":
         messages.info(request, _(u'Badge "{badgetitle}" deleted.').format(
